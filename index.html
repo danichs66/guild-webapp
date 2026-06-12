@@ -3,59 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Просмотр задания</title>
+    <title>Задание Гильдии</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { margin: 0; padding: 10px; background: #1e1e1e; color: white; font-family: sans-serif; text-align: center; }
-        video { width: 100%; max-height: 60vh; border-radius: 10px; }
-        button { padding: 12px 30px; font-size: 16px; margin-top: 20px; border: none; border-radius: 8px; background: #555; color: white; }
-        button.active { background: #4CAF50; }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1e1e1e;
+            color: white;
+            font-family: -apple-system, sans-serif;
+            text-align: center;
+        }
+        h3 { margin-bottom: 20px; }
+        .instruction {
+            background: #2c2c2c;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .timer {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #FFD700;
+        }
+        button {
+            padding: 14px 30px;
+            font-size: 16px;
+            margin: 10px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            width: 80%;
+            max-width: 300px;
+        }
+        .goto-btn {
+            background: #E1306C; /* Instagram gradient */
+            color: white;
+        }
+        .done-btn {
+            background: #555;
+            color: #aaa;
+        }
+        .done-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+        .note { font-size: 12px; color: #aaa; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h3>🎬 Задание от гильдии</h3>
-    <video id="video" controls>
-        <source src="" type="video/mp4">
-        Ваш браузер не поддерживает видео.
-    </video>
-    <p id="timer">Досмотри видео до конца</p>
-    <button id="doneBtn" disabled>✅ Я посмотрел</button>
+    <h3>🎯 Задание от Гильдии</h3>
+    <div class="instruction">
+        <p>1. Нажми кнопку <b>«Перейти к видео»</b></p>
+        <p>2. Посмотри видео <b>15 секунд</b> (не закрывая наш экран)</p>
+        <p>3. Вернись сюда и нажми <b>«Подтверждаю просмотр»</b></p>
+    </div>
+    <div class="timer" id="timerDisplay">15</div>
+    <p style="font-size:14px;">Осталось секунд</p>
+    <button class="goto-btn" id="gotoBtn">📱 Перейти к видео</button>
+    <button class="done-btn" id="doneBtn" disabled>✅ Подтверждаю просмотр</button>
+    <p class="note">Не закрывай это окно, пока не подтвердишь.</p>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Раскрыть на весь экран
+        tg.expand();
 
-        // Получаем ссылку из параметра
         const params = new URLSearchParams(window.location.search);
         const videoUrl = params.get('url');
         const taskId = params.get('task_id');
 
-        const video = document.getElementById('video');
+        const gotoBtn = document.getElementById('gotoBtn');
         const doneBtn = document.getElementById('doneBtn');
-        const timerText = document.getElementById('timer');
+        const timerDisplay = document.getElementById('timerDisplay');
 
-        if (videoUrl) {
-            video.src = videoUrl;
-            video.load();
-        } else {
-            timerText.innerText = '❌ Ссылка не указана';
-        }
-
-        // Кнопка активна после 15 секунд просмотра
+        let secondsLeft = 15;
+        let timerInterval;
         let canConfirm = false;
-        video.addEventListener('timeupdate', () => {
-            if (!canConfirm && video.currentTime >= 15) {
-                canConfirm = true;
-                doneBtn.disabled = false;
-                doneBtn.classList.add('active');
-                doneBtn.innerText = '✅ Подтверждаю просмотр';
-                timerText.innerText = 'Можешь подтвердить';
+
+        // Запуск таймера и редирект по кнопке
+        gotoBtn.addEventListener('click', () => {
+            if (videoUrl) {
+                // Открываем видео в оригинальной соцсети
+                window.open(videoUrl, '_blank');
+                // Меняем кнопку перехода
+                gotoBtn.disabled = true;
+                gotoBtn.innerText = '⏳ Видео открыто. Жди...';
+                // Запускаем обратный отсчёт
+                startTimer();
+            } else {
+                alert('Ошибка: ссылка не указана');
             }
         });
 
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                secondsLeft--;
+                timerDisplay.textContent = secondsLeft;
+                if (secondsLeft <= 0) {
+                    clearInterval(timerInterval);
+                    canConfirm = true;
+                    doneBtn.disabled = false;
+                    doneBtn.classList.add('active');
+                    doneBtn.innerText = '✅ Подтверждаю просмотр';
+                    timerDisplay.textContent = '0';
+                    timerDisplay.style.color = '#4CAF50';
+                }
+            }, 1000);
+        }
+
         doneBtn.addEventListener('click', () => {
             if (!canConfirm) return;
-            // Отправляем данные обратно боту
+            // Отправляем сигнал боту
             tg.sendData(JSON.stringify({ task_id: taskId, action: 'done' }));
             tg.close();
         });
