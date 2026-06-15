@@ -6,66 +6,42 @@
     <title>Задание Гильдии</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background: #1e1e1e;
-            color: white;
-            font-family: -apple-system, sans-serif;
-            text-align: center;
-        }
-        h3 { margin-bottom: 20px; }
-        .instruction {
-            background: #2c2c2c;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            font-size: 16px;
-            line-height: 1.5;
-        }
-        .timer {
-            font-size: 48px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #FFD700;
-        }
-        button {
-            padding: 14px 30px;
-            font-size: 16px;
-            margin: 10px;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            width: 80%;
-            max-width: 300px;
-        }
-        .goto-btn {
-            background: #E1306C; /* Instagram gradient */
-            color: white;
-        }
-        .done-btn {
-            background: #555;
-            color: #aaa;
-        }
-        .done-btn.active {
-            background: #4CAF50;
-            color: white;
-        }
-        .note { font-size: 12px; color: #aaa; margin-top: 10px; }
+        body { margin: 0; padding: 20px; background: #1e1e1e; color: white; font-family: sans-serif; text-align: center; }
+        h3 { margin-bottom: 10px; }
+        .instruction { background: #2c2c2c; padding: 15px; border-radius: 10px; margin: 15px 0; font-size: 14px; }
+        .timer { font-size: 48px; font-weight: bold; margin: 10px 0; color: #FFD700; }
+        button { padding: 12px; margin: 8px 0; border: none; border-radius: 10px; font-weight: bold; width: 90%; max-width: 300px; }
+        .goto-btn { background: #E1306C; color: white; }
+        .done-btn { background: #555; color: #aaa; }
+        .done-btn.active { background: #4CAF50; color: white; }
+        .bonus-section { text-align: left; background: #2c2c2c; padding: 15px; border-radius: 10px; margin-top: 20px; }
+        .bonus-section label { display: block; padding: 8px 0; font-size: 16px; }
+        .bonus-section input[type="checkbox"] { margin-right: 10px; }
+        .comment-input { width: 90%; padding: 10px; margin-top: 5px; border-radius: 5px; border: none; display: none; }
+        .note { font-size: 12px; color: #aaa; margin-top: 15px; }
     </style>
 </head>
 <body>
-    <h3>🎯 Задание от Гильдии</h3>
+    <h3>🎯 Задание Гильдии</h3>
     <div class="instruction">
-        <p>1. Нажми кнопку <b>«Перейти к видео»</b></p>
-        <p>2. Посмотри видео <b>15 секунд</b> (не закрывая наш экран)</p>
-        <p>3. Вернись сюда и нажми <b>«Подтверждаю просмотр»</b></p>
+        <p>1. Нажми <b>«Перейти к видео»</b></p>
+        <p>2. Посмотри <b>15 секунд</b> (не закрывая окно)</p>
+        <p>3. Отметь доп. действия и нажми <b>«Подтвердить»</b></p>
     </div>
     <div class="timer" id="timerDisplay">15</div>
-    <p style="font-size:14px;">Осталось секунд</p>
+    <p style="font-size:14px;">секунд до разблокировки</p>
     <button class="goto-btn" id="gotoBtn">📱 Перейти к видео</button>
+
+    <div class="bonus-section">
+        <p style="font-weight:bold;">🔥 Бонусные действия:</p>
+        <label><input type="checkbox" id="likeCheck"> 👍 Лайкнул (+1 🔮)</label>
+        <label><input type="checkbox" id="commentCheck"> 💬 Написал комментарий (+2 🔮)</label>
+        <input type="text" id="commentText" class="comment-input" placeholder="Введи оставленный комментарий">
+        <label><input type="checkbox" id="saveCheck"> 🔖 Сохранил (+1 🔮)</label>
+    </div>
+
     <button class="done-btn" id="doneBtn" disabled>✅ Подтверждаю просмотр</button>
-    <p class="note">Не закрывай это окно, пока не подтвердишь.</p>
+    <p class="note">После подтверждения ты получишь кристаллы.</p>
 
     <script>
         const tg = window.Telegram.WebApp;
@@ -78,20 +54,24 @@
         const gotoBtn = document.getElementById('gotoBtn');
         const doneBtn = document.getElementById('doneBtn');
         const timerDisplay = document.getElementById('timerDisplay');
+        const likeCheck = document.getElementById('likeCheck');
+        const commentCheck = document.getElementById('commentCheck');
+        const commentText = document.getElementById('commentText');
+        const saveCheck = document.getElementById('saveCheck');
 
         let secondsLeft = 15;
-        let timerInterval;
-        let canConfirm = false;
+        let canSubmit = false;
 
-        // Запуск таймера и редирект по кнопке
+        // Показываем поле комментария только если отмечен чекбокс
+        commentCheck.addEventListener('change', () => {
+            commentText.style.display = commentCheck.checked ? 'block' : 'none';
+        });
+
         gotoBtn.addEventListener('click', () => {
             if (videoUrl) {
-                // Открываем видео в оригинальной соцсети
                 window.open(videoUrl, '_blank');
-                // Меняем кнопку перехода
                 gotoBtn.disabled = true;
                 gotoBtn.innerText = '⏳ Видео открыто. Жди...';
-                // Запускаем обратный отсчёт
                 startTimer();
             } else {
                 alert('Ошибка: ссылка не указана');
@@ -99,15 +79,14 @@
         });
 
         function startTimer() {
-            timerInterval = setInterval(() => {
+            const interval = setInterval(() => {
                 secondsLeft--;
                 timerDisplay.textContent = secondsLeft;
                 if (secondsLeft <= 0) {
-                    clearInterval(timerInterval);
-                    canConfirm = true;
+                    clearInterval(interval);
+                    canSubmit = true;
                     doneBtn.disabled = false;
                     doneBtn.classList.add('active');
-                    doneBtn.innerText = '✅ Подтверждаю просмотр';
                     timerDisplay.textContent = '0';
                     timerDisplay.style.color = '#4CAF50';
                 }
@@ -115,9 +94,30 @@
         }
 
         doneBtn.addEventListener('click', () => {
-            if (!canConfirm) return;
-            // Отправляем сигнал боту
-            tg.sendData(JSON.stringify({ task_id: taskId, action: 'done' }));
+            if (!canSubmit) return;
+
+            const actions = [];
+            if (likeCheck.checked) actions.push('like');
+            if (saveCheck.checked) actions.push('save');
+            if (commentCheck.checked) {
+                const cmt = commentText.value.trim();
+                if (cmt) {
+                    actions.push('comment');
+                    // Сохраним комментарий для передачи
+                } else {
+                    alert('Ты отметил комментарий, но не написал текст. Впиши его, пожалуйста.');
+                    return;
+                }
+            }
+
+            // Подготавливаем данные для бота
+            const payload = {
+                task_id: taskId,
+                action: 'done',
+                bonuses: actions,
+                comment_text: commentCheck.checked ? commentText.value.trim() : ''
+            };
+            tg.sendData(JSON.stringify(payload));
             tg.close();
         });
     </script>
